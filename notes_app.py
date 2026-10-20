@@ -142,7 +142,9 @@ PAGE = """<!doctype html>
 <main>
   <h1>Notes</h1>
   <p class="sub">Add a note, tick it when it is done.</p>
-
+  
+  <p class="sub" id="count"></p>
+  
   <form id="form">
     <input type="text" id="title" placeholder="Title" required maxlength="120">
     <textarea id="body" placeholder="Details (optional)"></textarea>
@@ -160,6 +162,7 @@ PAGE = """<!doctype html>
   const submitEl = document.getElementById("submit");
   const msgEl = document.getElementById("msg");
   const listEl = document.getElementById("list");
+  const countEl = document.getElementById("count");
 
   function showError(text) { msgEl.textContent = text || ""; }
 
@@ -167,6 +170,11 @@ PAGE = """<!doctype html>
   async function loadNotes() {
     const res = await fetch("/notes");
     const notes = await res.json();
+    
+  //adding counter for done notes
+  const doneCount = notes.filter(n => n.done).length;
+  countEl.textContent = `${doneCount} of ${notes.length} done`; 
+
     listEl.innerHTML = "";
     if (notes.length === 0) {
       const empty = document.createElement("p");
