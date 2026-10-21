@@ -11,6 +11,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+from pwdlib import PasswordHash
+ph = PasswordHash.recommended()
+
 # The database file always sits next to this script,
 # no matter which folder you start the app from.
 DB_FILE = Path(__file__).with_name("notes.db")
@@ -37,6 +40,16 @@ def setup():
                )"""
         )
 
+#create a table for user and password
+    #with get_db() as db:
+        db.execute(
+                    """CREATE TABLE IF NOT EXISTS users (
+                          id INTEGER PRIMARY KEY AUTOINCREMENT,
+                          email TEXT NOT NULL UNIQUE,
+                          password_hash TEXT NOT NULL
+                      )"""
+                )
+
 
 setup()
 
@@ -46,6 +59,12 @@ class NoteIn(BaseModel):
     title: str
     body: str = ""
     done: bool = False
+
+# class for user login and registration
+class SignupIn(BaseModel):
+    """The shape of data we accept for user registration and login."""
+    email: str
+    password: str
 
 
 def to_dict(row):
@@ -57,7 +76,6 @@ def to_dict(row):
 
 # ---------------------------------------------------------------- API
 
-
 @app.post("/notes", status_code=201)       # CREATE
 def add_note(note: NoteIn):
     with get_db() as db:
@@ -66,6 +84,21 @@ def add_note(note: NoteIn):
             (note.title, note.body, int(note.done)),
         )
         return {"id": cur.lastrowid, **note.model_dump()}
+
+
+# A route for user registration
+@app.post("/users", status_code=201)
+def register_user(user: SignupIn):
+    hashed = ph.hash(user.password)          # hash first, outside the database block
+    try:
+        with get_db() as db:
+            cur = db.execute(
+                "INSERT INTO users (email, password_hash) VALUES (?, ?)",
+                (user.email, hashed),
+            )
+    except sqlite3.IntegrityError:           # the UNIQUE email rule was broken
+        raise HTTPException(409, "Email already registered")
+    return {"id": cur.lastrowid, "email": user.email}
 
 
 @app.get("/notes")                          # READ (all)
