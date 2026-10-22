@@ -7,6 +7,11 @@ Open: http://127.0.0.1:8000/        (the notes page)
 import sqlite3
 from pathlib import Path
 
+import os
+import jwt
+from datetime import datetime, timedelta, timezone
+SECRET_KEY = os.environ.get("NOTES_SECRET", "dev-only-change-me-dev-only-change-me")
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -99,6 +104,43 @@ def register_user(user: SignupIn):
     except sqlite3.IntegrityError:           # the UNIQUE email rule was broken
         raise HTTPException(409, "Email already registered")
     return {"id": cur.lastrowid, "email": user.email}
+
+
+#A route for user login authentication
+@app.post("/login", status_code=200)
+def login_user(user: SignupIn):
+    with get_db() as db:
+        row = db.execute(
+            "SELECT id, password_hash FROM users WHERE email = ?",
+            (user.email,)
+        ).fetchone()
+    if row is None:
+        raise HTTPException(401, "Invalid email or password")
+    if not ph.verify(user.password, row["password_hash"]):
+        raise HTTPException(401, "Invalid email or password")
+    token = jwt.encode(
+    {"sub": str(row["id"]), "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+    SECRET_KEY, algorithm="HS256",
+    )
+    return {"access_token": token, "token_type": "bearer"}
+
+#A route for user login authentication
+@app.post("/login", status_code=200)
+def login_user(user: SignupIn):
+    with get_db() as db:
+        row = db.execute(
+            "SELECT id, password_hash FROM users WHERE email = ?",
+            (user.email,)
+        ).fetchone()
+    if row is None:
+        raise HTTPException(401, "Invalid email or password")
+    if not ph.verify(user.password, row["password_hash"]):
+        raise HTTPException(401, "Invalid email or password")
+    token = jwt.encode(
+        {"sub": str(row["id"]), "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
+        SECRET_KEY, algorithm="HS256",
+    )
+    return {"access_token": token, "token_type": "bearer"}
 
 
 @app.get("/notes")                          # READ (all)
