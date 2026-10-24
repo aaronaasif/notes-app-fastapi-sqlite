@@ -20,12 +20,14 @@ FastAPI also builds an interactive test page for the API automatically, so every
 | Method | Path | What it does |
 | --- | --- | --- |
 | GET | `/` | The notes web page |
-| POST | `/notes` | Add a note |
-| GET | `/notes` | List all notes, newest first |
-| GET | `/notes/{id}` | Get one note |
-| PUT | `/notes/{id}` | Change a note |
-| DELETE | `/notes/{id}` | Delete a note |
+| POST | `/notes` | Add a note - requires login |
+| GET | `/notes` | List all notes, newest first - requires login |
+| GET | `/notes/{id}` | Get one note - requires login |
+| PUT | `/notes/{id}` | Change a note - requires login |
+| DELETE | `/notes/{id}` | Delete a note - requires login |
 | POST | `/users` | Sign up with an email and password |
+| POST | `/login` | Sign in with an email and password |
+| GET | `/me` | Verify the current logged in user |
 
 Example body for `POST` and `PUT` on `/notes`:
 
@@ -69,16 +71,20 @@ Run the command from the project folder. The database file always sits next to `
 - `notes.db` is listed in `.gitignore`, so your data and users are never uploaded to GitHub.
 - Notes are not tied to users yet. Login, and showing each person only their own notes, comes next. Do not put this on the internet before that is done.
 - If you change the structure of a table that already exists while practising, delete `notes.db` and restart so a new table is created.
+- The web page’s login form is the next step, because the page can’t call the protected routes yet.
 
 ## Roadmap
 
 - [x] SQLite database with CRUD API
 - [x] Web page with submit form, done tick box and counter
 - [x] User sign-up with hashed passwords
-- [ ] Login with a token
-- [ ] Each user sees only their own notes
+- [x] Login with a token
+- [x] Each user sees only their own notes
 - [ ] Deploy online with a hosted database
 
 ## Built with
 
 Python, FastAPI, SQLite (Python's built-in `sqlite3` module), Pydantic, pwdlib (Argon2), plain HTML, CSS and JavaScript.
+
+
+

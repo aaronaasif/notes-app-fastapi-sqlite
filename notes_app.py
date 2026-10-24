@@ -16,12 +16,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+
 from pwdlib import PasswordHash
 ph = PasswordHash.recommended()
 
 # The database file always sits next to this script,
 # no matter which folder you start the app from.
 DB_FILE = Path(__file__).with_name("notes.db")
+
+oauth2 = OAuth2PasswordBearer(tokenUrl="login")
 
 app = FastAPI(title="Notes app")
 
@@ -41,7 +46,8 @@ def setup():
                    id    INTEGER PRIMARY KEY AUTOINCREMENT,
                    title TEXT NOT NULL,
                    body  TEXT NOT NULL DEFAULT '',
-                   done  BOOLEAN NOT NULL DEFAULT 0
+                   done  BOOLEAN NOT NULL DEFAULT 0,
+                   user_id INTEGER NOT NULL
                )"""
         )
 
@@ -81,12 +87,20 @@ def to_dict(row):
 
 # ---------------------------------------------------------------- API
 
+def current_user_id(token: str = Depends(oauth2)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+    except jwt.InvalidTokenError:
+        raise HTTPException(401, "Invalid or expired token")
+    return int(payload["sub"])        # this is why sub must be a string, then converted back
+
+
 @app.post("/notes", status_code=201)       # CREATE
-def add_note(note: NoteIn):
+def add_note(note: NoteIn, user_id: int = Depends(current_user_id)):
     with get_db() as db:
         cur = db.execute(
-            "INSERT INTO notes (title, body, done) VALUES (?, ?, ?)",
-            (note.title, note.body, int(note.done)),
+            "INSERT INTO notes (title, body, done, user_id) VALUES (?, ?, ?, ?)",
+            (note.title, note.body, int(note.done), user_id),
         )
         return {"id": cur.lastrowid, **note.model_dump()}
 
@@ -108,15 +122,16 @@ def register_user(user: SignupIn):
 
 #A route for user login authentication
 @app.post("/login", status_code=200)
-def login_user(user: SignupIn):
+def login_user(form: OAuth2PasswordRequestForm = Depends()):
+    # form.username is the email, form.password is the password
     with get_db() as db:
         row = db.execute(
             "SELECT id, password_hash FROM users WHERE email = ?",
-            (user.email,)
+            (form.username,)
         ).fetchone()
     if row is None:
         raise HTTPException(401, "Invalid email or password")
-    if not ph.verify(user.password, row["password_hash"]):
+    if not ph.verify(form.password, row["password_hash"]):
         raise HTTPException(401, "Invalid email or password")
     token = jwt.encode(
     {"sub": str(row["id"]), "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
@@ -124,46 +139,39 @@ def login_user(user: SignupIn):
     )
     return {"access_token": token, "token_type": "bearer"}
 
-#A route for user login authentication
-@app.post("/login", status_code=200)
-def login_user(user: SignupIn):
+
+#Login Authentication: Verify the current user's information
+@app.get("/me")
+def me(user_id: int = Depends(current_user_id)):
+    # SELECT id, email FROM users WHERE id = ?   ->  return dict(row)
     with get_db() as db:
-        row = db.execute(
-            "SELECT id, password_hash FROM users WHERE email = ?",
-            (user.email,)
-        ).fetchone()
+        row = db.execute("SELECT id, email FROM users WHERE id = ?", (user_id,)).fetchone()
     if row is None:
-        raise HTTPException(401, "Invalid email or password")
-    if not ph.verify(user.password, row["password_hash"]):
-        raise HTTPException(401, "Invalid email or password")
-    token = jwt.encode(
-        {"sub": str(row["id"]), "exp": datetime.now(timezone.utc) + timedelta(hours=1)},
-        SECRET_KEY, algorithm="HS256",
-    )
-    return {"access_token": token, "token_type": "bearer"}
+            raise HTTPException(401, "User not found")
+    return {"id": row["id"], "email": row["email"]}
 
 
 @app.get("/notes")                          # READ (all)
-def list_notes():
+def list_notes(user_id: int = Depends(current_user_id)):
     with get_db() as db:
-        return [to_dict(r) for r in db.execute("SELECT * FROM notes ORDER BY id DESC")]
+        return [to_dict(r) for r in db.execute("SELECT * FROM notes WHERE user_id = ? ORDER BY id DESC", (user_id,))]
 
 
 @app.get("/notes/{note_id}")                # READ (one)
-def get_note(note_id: int):
+def get_note(note_id: int, user_id: int = Depends(current_user_id)):
     with get_db() as db:
-        row = db.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
+        row = db.execute("SELECT * FROM notes WHERE id = ? AND user_id = ?", (note_id, user_id)).fetchone()
     if row is None:
         raise HTTPException(404, "Note not found")
     return to_dict(row)
 
 
 @app.put("/notes/{note_id}")                # UPDATE
-def update_note(note_id: int, note: NoteIn):
+def update_note(note_id: int, note: NoteIn, user_id: int = Depends(current_user_id)):
     with get_db() as db:
         cur = db.execute(
-            "UPDATE notes SET title = ?, body = ?, done = ? WHERE id = ?",
-            (note.title, note.body, int(note.done), note_id),
+            "UPDATE notes SET title = ?, body = ?, done = ? WHERE id = ? AND user_id = ?",
+            (note.title, note.body, int(note.done), note_id, user_id),
         )
     if cur.rowcount == 0:
         raise HTTPException(404, "Note not found")
@@ -171,9 +179,9 @@ def update_note(note_id: int, note: NoteIn):
 
 
 @app.delete("/notes/{note_id}", status_code=204)   # DELETE
-def delete_note(note_id: int):
+def delete_note(note_id: int, user_id: int = Depends(current_user_id)):
     with get_db() as db:
-        cur = db.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+        cur = db.execute("DELETE FROM notes WHERE id = ? AND user_id = ?", (note_id, user_id))
     if cur.rowcount == 0:
         raise HTTPException(404, "Note not found")
 
