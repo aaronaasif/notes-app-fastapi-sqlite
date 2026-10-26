@@ -77,7 +77,6 @@ class SignupIn(BaseModel):
     email: str
     password: str
 
-
 def to_dict(row):
     """Turn a database row into a dict, with done as true/false."""
     note = dict(row)
@@ -199,11 +198,12 @@ PAGE = """<!doctype html>
   body { margin: 0; font-family: system-ui, "Segoe UI", Arial, sans-serif;
          background: #f4f1ec; color: #1c2230; }
   main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+  .sec-block { background: #ffffff; padding: 24px; border-radius: 12px; margin: 0 0 24px; }
   h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -0.5px; }
   .sub { color: #5b6474; margin: 0 0 24px; }
   form, .note { background: #fff; border: 1px solid #e3ded5; border-radius: 14px; padding: 16px; }
   form { display: grid; gap: 10px; margin-bottom: 24px; }
-  input[type=text], textarea { width: 100%; font: inherit; padding: 10px 12px;
+  input[type=text], input[type=email], input[type=password], textarea { width: 100%; font: inherit; padding: 10px 12px;
          border: 1px solid #cfc9bd; border-radius: 10px; background: #fff; }
   textarea { min-height: 70px; resize: vertical; }
   input:focus, textarea:focus { outline: 2px solid #0f6b5a; border-color: transparent; }
@@ -223,7 +223,11 @@ PAGE = """<!doctype html>
 </head>
 <body>
 <main>
+  
+  <!-- The is notes page. It is a single-page app: the JavaScript below talks to the API above. -->
+  <section class="sec-block" id="app">
   <h1>Notes</h1>
+  <p class="sub">Signed in as <span id="who"></span></p>
   <p class="sub">Add a note, tick it when it is done.</p>
   
   <p class="sub" id="count"></p>
@@ -236,9 +240,29 @@ PAGE = """<!doctype html>
   </form>
 
   <div id="list"></div>
+
+  <button class="submit" id="logout" type="button">Log Out</button>
+
+  </section>
+  
+  <!--This is Login Auth Card -->
+  <section class="sec-block" id="auth">
+  <h1>Login Page</h1>
+  <form id="auth-form">
+    <input type="email" id="email" placeholder="enter your email address" required maxlength="120">
+    <input type="password" id="password" autocomplete="current-password" placeholder="enter your password" required maxlength="50">
+    <button class="submit" id="login" type="submit">Log In</button>
+    <button class="submit" id="signups" type="button">Sign Up</button>
+    <p class="msg" id="msg-error"></p>
+  </form>
+  </section>
+
 </main>
 
 <script>
+  const authForm = document.getElementById("auth-form");
+  const emailEl  = document.getElementById("email");
+  const passEl   = document.getElementById("password");
   const form = document.getElementById("form");
   const titleEl = document.getElementById("title");
   const bodyEl = document.getElementById("body");
@@ -246,8 +270,36 @@ PAGE = """<!doctype html>
   const msgEl = document.getElementById("msg");
   const listEl = document.getElementById("list");
   const countEl = document.getElementById("count");
+  const authEl = document.getElementById("auth");
+  const appEl = document.getElementById("app");
+  const msgErrorEl = document.getElementById("msg-error");
 
+
+  function showAuth() { authEl.hidden = false; appEl.hidden = true; }
+  function showApp()  { authEl.hidden = true;  appEl.hidden = false; }
   function showError(text) { msgEl.textContent = text || ""; }
+  function showAuthError(text) { msgErrorEl.textContent = text || ""; }
+  
+  // ---- Login ----
+  let token = null;
+  try { token = localStorage.getItem("token"); } catch (e) {}
+
+  authForm.addEventListener("submit", async (event) => {
+    // preventDefault
+    event.preventDefault();
+    // clear the old error
+    showAuthError(""); 
+    // send POST /login
+    const res = await fetch("/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ username: emailEl.value.trim(), password: passEl.value }),
+    });
+    console.log(res.status);
+    // handle failure, save the token, call showApp()
+  });
+
+
 
   // Ask the API for all notes and draw them.
   async function loadNotes() {
@@ -337,7 +389,8 @@ PAGE = """<!doctype html>
     await loadNotes();
   }
 
-  loadNotes();
+  //loadNotes();
+  showAuth();
 </script>
 </body>
 </html>
