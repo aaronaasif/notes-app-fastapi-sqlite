@@ -225,7 +225,7 @@ PAGE = """<!doctype html>
 <main>
   
   <!-- The is notes page. It is a single-page app: the JavaScript below talks to the API above. -->
-  <section class="sec-block" id="app">
+  <section class="sec-block" id="app" hidden>
   <h1>Notes</h1>
   <p class="sub">Signed in as <span id="who"></span></p>
   <p class="sub">Add a note, tick it when it is done.</p>
@@ -246,7 +246,7 @@ PAGE = """<!doctype html>
   </section>
   
   <!--This is Login Auth Card -->
-  <section class="sec-block" id="auth">
+  <section class="sec-block" id="auth" hidden>
   <h1>Login Page</h1>
   <form id="auth-form">
     <input type="email" id="email" placeholder="enter your email address" required maxlength="120">
@@ -273,6 +273,9 @@ PAGE = """<!doctype html>
   const authEl = document.getElementById("auth");
   const appEl = document.getElementById("app");
   const msgErrorEl = document.getElementById("msg-error");
+  const whoEl = document.getElementById("who");
+  const logoutEl = document.getElementById("logout");
+  const signupEl = document.getElementById("signups");
 
 
   function showAuth() { authEl.hidden = false; appEl.hidden = true; }
@@ -284,63 +287,145 @@ PAGE = """<!doctype html>
   let token = null;
   try { token = localStorage.getItem("token"); } catch (e) {}
 
-  authForm.addEventListener("submit", async (event) => {
+ authForm.addEventListener("submit", async (event) => {
     // preventDefault
     event.preventDefault();
     // clear the old error
     showAuthError(""); 
     // send POST /login
-    const res = await fetch("/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({ username: emailEl.value.trim(), password: passEl.value }),
-    });
-    console.log(res.status);
-    // handle failure, save the token, call showApp()
-  });
-
-
-
-  // Ask the API for all notes and draw them.
-  async function loadNotes() {
-    const res = await fetch("/notes");
-    const notes = await res.json();
-    
-  //adding counter for done notes
-  const doneCount = notes.filter(n => n.done).length;
-  countEl.textContent = `${doneCount} of ${notes.length} done`; 
-
-    listEl.innerHTML = "";
-    if (notes.length === 0) {
-      const empty = document.createElement("p");
-      empty.className = "empty";
-      empty.textContent = "No notes yet. Add your first one above.";
-      listEl.appendChild(empty);
+    let res;
+    try {
+      res = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ username: emailEl.value.trim(), password: passEl.value }),
+      });
+    } catch (err) {
+      showAuthError("Cannot reach the server. Try again.");
       return;
     }
-    for (const n of notes) listEl.appendChild(drawNote(n));
-  }
 
-  // Build one note card. textContent keeps user text safe (never run as HTML).
-  function drawNote(n) {
-    const card = document.createElement("div");
-    card.className = "note" + (n.done ? " done" : "");
+   if (!res.ok) {
+     showAuthError(res.status === 401 ? "Invalid email or password" : "Login failed. Try again.");
+     return;                                   // stop here
+     }
+    
+    // handle failure, save the token, call showApp()
+    const data = await res.json();
+    token = data.access_token;
+    try { localStorage.setItem("token", token); } catch (e) {}
+    passEl.value = "";
+    showApp();
+    await loadNotes();
+ });
 
-    const box = document.createElement("input");
-    box.type = "checkbox";
-    box.checked = n.done;
-    box.setAttribute("aria-label", "Mark as done");
-    box.addEventListener("change", () => toggleDone(n, box.checked));
+    // New Signup button: send POST /users to register a new user
+    signupEl.addEventListener("click", async () => {
+         console.log("signup clicked");
+         showAuthError("");
+         if (!authForm.reportValidity()) return;
+ 
+         let res;
+         try {
+             res = await fetch("/users", {
+             method: "POST",
+             headers: { "Content-Type": "application/json" },
+             body: JSON.stringify({ email: emailEl.value.trim(), password: passEl.value }),
+             });
+         } catch (err) {
+             showAuthError("Cannot reach the server. Try again.");
+             return;
+         }
+ 
+         if (res.status === 409) { showAuthError("That email is already registered. Try logging in."); return; }
+         if (!res.ok) { showAuthError("Sign up failed. Check your details and try again."); return; }
+         showAuthError("Account created. You can log in now.");
+    });
 
-    const text = document.createElement("div");
-    const h = document.createElement("h3");
-    h.textContent = n.title;
-    text.appendChild(h);
-    if (n.body) {
-      const p = document.createElement("p");
-      p.textContent = n.body;
-      text.appendChild(p);
+    // Clear the token and go back to the login card
+    function clearSession() {
+        token = null;
+        try { localStorage.removeItem("token"); } catch (e) {}
+        showAuth();
     }
+
+    // Like fetch, but adds the login token. On a 401, go back to the login card.
+    async function api(path, options = {}) {
+        const headers = { ...(options.headers || {}), Authorization: "Bearer " + token };
+        const res = await fetch(path, { ...options, headers });
+        if (res.status === 401) clearSession();
+        return res;
+    }
+
+    // load the current user's info and display it
+    async function loadWho() {
+        const res = await api("/me");
+        if (!res.ok) return false;
+        const me = await res.json();
+        whoEl.textContent = me.email;
+        return true;
+    }
+
+    //Stay Logged In after a reload: check if the token is valid and load the notes
+    async function init() {
+        if (!token) { showAuth(); return; }
+        try {
+            if (await loadWho()) { showApp(); await loadNotes(); }
+        } catch (err) {
+            showAuth();
+        }
+    }
+
+    
+    // Log out button: clear the token and go back to the login card
+    logoutEl.addEventListener("click", () => {
+        clearSession();
+        listEl.innerHTML = "";
+        whoEl.textContent = "";
+        countEl.textContent = "";
+    });
+
+    // Ask the API for all notes and draw them.
+    async function loadNotes() {
+        const res = await api("/notes");
+        if (!res.ok) return;
+        const notes = await res.json();
+    
+    //adding counter for done notes
+    const doneCount = notes.filter(n => n.done).length;
+    countEl.textContent = `${doneCount} of ${notes.length} done`; 
+
+        listEl.innerHTML = "";
+        if (notes.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "No notes yet. Add your first one above.";
+        listEl.appendChild(empty);
+        return;
+        }
+        for (const n of notes) listEl.appendChild(drawNote(n));
+    }
+
+    // Build one note card. textContent keeps user text safe (never run as HTML).
+    function drawNote(n) {
+        const card = document.createElement("div");
+        card.className = "note" + (n.done ? " done" : "");
+
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = n.done;
+        box.setAttribute("aria-label", "Mark as done");
+        box.addEventListener("change", () => toggleDone(n, box.checked));
+
+        const text = document.createElement("div");
+        const h = document.createElement("h3");
+        h.textContent = n.title;
+        text.appendChild(h);
+        if (n.body) {
+        const p = document.createElement("p");
+        p.textContent = n.body;
+        text.appendChild(p);
+        }
 
     const del = document.createElement("button");
     del.className = "del";
@@ -357,7 +442,7 @@ PAGE = """<!doctype html>
     showError("");
     submitEl.disabled = true;
     try {
-      const res = await fetch("/notes", {
+      const res = await api("/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: titleEl.value.trim(), body: bodyEl.value.trim(), done: false }),
@@ -374,7 +459,7 @@ PAGE = """<!doctype html>
   });
 
   async function toggleDone(n, done) {
-    const res = await fetch("/notes/" + n.id, {
+    const res = await api("/notes/" + n.id, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: n.title, body: n.body, done: done }),
@@ -384,18 +469,17 @@ PAGE = """<!doctype html>
   }
 
   async function removeNote(id) {
-    const res = await fetch("/notes/" + id, { method: "DELETE" });
+    const res = await api("/notes/" + id, { method: "DELETE" });
     if (!res.ok) showError("Could not delete the note.");
     await loadNotes();
   }
 
-  //loadNotes();
-  showAuth();
+  init();  // check for a token and load the notes if it is valid
+
 </script>
 </body>
 </html>
 """
-
 
 @app.get("/", response_class=HTMLResponse)
 def home():
