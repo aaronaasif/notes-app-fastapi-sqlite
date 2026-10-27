@@ -83,7 +83,7 @@ Run the command from the project folder. The database file always sits next to `
 - [x] The page now has a login and sign-up screen
 - [ ] Deploy online with a hosted database
 
-## Built with  Python
+## Built with
 
 Python, FastAPI, SQLite (Python's built-in `sqlite3` module), Pydantic, pwdlib (Argon2), plain HTML, CSS and JavaScript.
 
