@@ -71,7 +71,7 @@ Run the command from the project folder. The database file always sits next to `
 - `notes.db` is listed in `.gitignore`, so your data and users are never uploaded to GitHub.
 - Notes are not tied to users yet. Login, and showing each person only their own notes, comes next. Do not put this on the internet before that is done.
 - If you change the structure of a table that already exists while practising, delete `notes.db` and restart so a new table is created.
-- The web page’s login form is the next step, because the page can’t call the protected routes yet.
+- The web pageï¿½s login form is the next step, because the page canï¿½t call the protected routes yet.
 
 ## Roadmap
 
@@ -80,9 +80,10 @@ Run the command from the project folder. The database file always sits next to `
 - [x] User sign-up with hashed passwords
 - [x] Login with a token
 - [x] Each user sees only their own notes
+- [x] The page now has a login and sign-up screen
 - [ ] Deploy online with a hosted database
 
-## Built with
+## Built with  Python
 
 Python, FastAPI, SQLite (Python's built-in `sqlite3` module), Pydantic, pwdlib (Argon2), plain HTML, CSS and JavaScript.
 
