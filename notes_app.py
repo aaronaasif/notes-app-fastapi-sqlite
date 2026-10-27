@@ -283,41 +283,41 @@ PAGE = """<!doctype html>
   function showError(text) { msgEl.textContent = text || ""; }
   function showAuthError(text) { msgErrorEl.textContent = text || ""; }
   
-  // ---- Login ----
-  let token = null;
-  try { token = localStorage.getItem("token"); } catch (e) {}
+    // ---- Login ----
+    let token = null;
+    try { token = localStorage.getItem("token"); } catch (e) {}
 
- authForm.addEventListener("submit", async (event) => {
-    // preventDefault
-    event.preventDefault();
-    // clear the old error
-    showAuthError(""); 
-    // send POST /login
-    let res;
-    try {
-      res = await fetch("/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ username: emailEl.value.trim(), password: passEl.value }),
-      });
-    } catch (err) {
-      showAuthError("Cannot reach the server. Try again.");
-      return;
-    }
+    authForm.addEventListener("submit", async (event) => {
+            // preventDefault
+            event.preventDefault();
+            // clear the old error
+            showAuthError(""); 
+            // send POST /login
+            let res;
+            try {
+            res = await fetch("/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({ username: emailEl.value.trim(), password: passEl.value }),
+            });
+            } catch (err) {
+            showAuthError("Cannot reach the server. Try again.");
+            return;
+            }
 
-   if (!res.ok) {
-     showAuthError(res.status === 401 ? "Invalid email or password" : "Login failed. Try again.");
-     return;                                   // stop here
-     }
-    
-    // handle failure, save the token, call showApp()
-    const data = await res.json();
-    token = data.access_token;
-    try { localStorage.setItem("token", token); } catch (e) {}
-    passEl.value = "";
-    showApp();
-    await loadNotes();
- });
+        if (!res.ok) {
+            showAuthError(res.status === 401 ? "Invalid email or password" : "Login failed. Try again.");
+            return;                                   // stop here
+            }
+            
+            // handle failure, save the token, call showApp()
+            const data = await res.json();
+            token = data.access_token;
+            try { localStorage.setItem("token", token); } catch (e) {}
+            passEl.value = "";
+            showApp();
+            await loadNotes();
+    });
 
     // New Signup button: send POST /users to register a new user
     signupEl.addEventListener("click", async () => {
@@ -341,7 +341,7 @@ PAGE = """<!doctype html>
          if (!res.ok) { showAuthError("Sign up failed. Check your details and try again."); return; }
          showAuthError("Account created. You can log in now.");
     });
-
+ 
     // Clear the token and go back to the login card
     function clearSession() {
         token = null;
