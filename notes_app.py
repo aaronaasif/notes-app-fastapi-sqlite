@@ -210,15 +210,19 @@ PAGE = """<!doctype html>
   button { font: inherit; cursor: pointer; border: 0; border-radius: 10px; padding: 10px 16px; }
   .submit { background: #0f6b5a; color: #fff; font-weight: 700; justify-self: start; }
   .submit:disabled { opacity: .6; cursor: default; }
-  .note { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: start;
+  .note { display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: start;
           margin-bottom: 10px; }
   .note input[type=checkbox] { width: 20px; height: 20px; margin-top: 3px; accent-color: #0f6b5a; }
   .note h3 { margin: 0; font-size: 17px; }
   .note p { margin: 4px 0 0; color: #5b6474; white-space: pre-wrap; }
   .note.done h3 { text-decoration: line-through; color: #8a93a3; }
   .del { background: #f6e4e1; color: #a33a2c; padding: 6px 12px; font-size: 14px; }
+  .edit { background: #e6efec; color: #0f6b5a; padding: 6px 12px; font-size: 14px; }
   .msg { color: #a33a2c; min-height: 20px; margin: 0; }
   .empty { color: #8a93a3; text-align: center; padding: 24px 0; }
+  .note.editing { grid-template-columns: 1fr; }
+  .actions { display: flex; gap: 8px; }
+  .cancel { background: #eceae4; color: #1c2230; }
 </style>
 </head>
 <body>
@@ -427,13 +431,51 @@ PAGE = """<!doctype html>
         text.appendChild(p);
         }
 
+    // add delete button to each note card
     const del = document.createElement("button");
     del.className = "del";
     del.textContent = "Delete";
     del.addEventListener("click", () => removeNote(n.id));
 
-    card.append(box, text, del);
+    //add edit button to each note card 
+    const edit = document.createElement("button");
+    edit.className = "edit";
+    edit.textContent = "Edit";
+    edit.addEventListener("click", () => startEdit(card, n));
+
+    card.append(box, text, edit, del);          // edit button goes before del
     return card;
+  }
+
+  // Edit button: replace the note card with a form to edit it.
+  function startEdit(card, n) {
+    card.className = "note editing";
+    card.innerHTML = "";                         // clear the card
+
+    const titleIn = document.createElement("input");
+    titleIn.type = "text";
+    titleIn.maxLength = 120;
+    titleIn.value = n.title;                     // .value is safe: never read as HTML
+
+    const bodyIn = document.createElement("textarea");
+    bodyIn.value = n.body;
+
+    const save = document.createElement("button");
+    save.className = "submit";
+    save.textContent = "Save";
+    // step 3 goes here
+
+    const cancel = document.createElement("button");
+    cancel.className = "cancel";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", () => card.replaceWith(drawNote(n)));
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+    actions.append(save, cancel);
+
+    card.append(titleIn, bodyIn, actions);
+    titleIn.focus();
   }
 
   // The Submit button: send the form to the API as a new note.
