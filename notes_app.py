@@ -194,35 +194,68 @@ PAGE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Notes</title>
 <style>
+:root {
+    --bg: #f6f3ee;  --card: #ffffff;  --ink: #15171c;  --muted: #636875;  --line: #e4dfd6;
+    --accent: #d9480f;  --accent-soft: #fbe6da;
+    --danger: #b42318;  --danger-bg: #fdecea;
+    --radius: 8px;
+    --s1: 8px;  --s2: 12px;  --s3: 16px;  --s4: 24px;
+  }
   * { box-sizing: border-box; }
-  body { margin: 0; font-family: system-ui, "Segoe UI", Arial, sans-serif;
-         background: #f4f1ec; color: #1c2230; }
-  main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
-  .sec-block { background: #ffffff; padding: 24px; border-radius: 12px; margin: 0 0 24px; }
-  h1 { font-size: 30px; margin: 0 0 4px; letter-spacing: -0.5px; }
-  .sub { color: #5b6474; margin: 0 0 24px; }
-  form, .note { background: #fff; border: 1px solid #e3ded5; border-radius: 14px; padding: 16px; }
-  form { display: grid; gap: 10px; margin-bottom: 24px; }
-  input[type=text], input[type=email], input[type=password], textarea { width: 100%; font: inherit; padding: 10px 12px;
-         border: 1px solid #cfc9bd; border-radius: 10px; background: #fff; }
+  body { margin: 0; font: 16px/1.5 "DM Sans", system-ui, "Segoe UI", Arial, sans-serif;
+         background: var(--bg); color: var(--ink); }
+  main { max-width: 680px; margin: 0 auto; padding: var(--s4) var(--s3) 64px; }
+
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 34px;
+       line-height: 1.1; letter-spacing: -0.02em; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 var(--s3); }
+  .sec-block { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+               padding: var(--s4); margin: 0 0 var(--s4); }
+
+  /* count pill */
+  #count { display: inline-block; margin: 0 0 var(--s3); padding: 2px 10px; border-radius: 999px;
+           background: var(--accent-soft); color: var(--accent); font-size: 13px; font-weight: 600; }
+  #count:empty { display: none; }
+
+  /* forms and inputs */
+  form { display: grid; gap: var(--s2); margin: 0 0 var(--s4); }
+  input[type=text], input[type=email], input[type=password], textarea {
+    width: 100%; font: inherit; color: var(--ink); background: #fff;
+    padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); }
   textarea { min-height: 70px; resize: vertical; }
-  input:focus, textarea:focus { outline: 2px solid #0f6b5a; border-color: transparent; }
-  button { font: inherit; cursor: pointer; border: 0; border-radius: 10px; padding: 10px 16px; }
-  .submit { background: #0f6b5a; color: #fff; font-weight: 700; justify-self: start; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+
+  /* buttons */
+  button { font: inherit; font-weight: 600; cursor: pointer; border: 1px solid transparent;
+           border-radius: var(--radius); padding: 9px 16px; transition: background .15s, filter .15s; }
+  .submit { background: var(--accent); color: #fff; justify-self: start; }
+  .submit:hover { filter: brightness(.94); }
   .submit:disabled { opacity: .6; cursor: default; }
-  .note { display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: start;
-          margin-bottom: 10px; }
-  .note input[type=checkbox] { width: 20px; height: 20px; margin-top: 3px; accent-color: #0f6b5a; }
-  .note h3 { margin: 0; font-size: 17px; }
-  .note p { margin: 4px 0 0; color: #5b6474; white-space: pre-wrap; }
-  .note.done h3 { text-decoration: line-through; color: #8a93a3; }
-  .del { background: #f6e4e1; color: #a33a2c; padding: 6px 12px; font-size: 14px; }
-  .edit { background: #e6efec; color: #0f6b5a; padding: 6px 12px; font-size: 14px; }
-  .msg { color: #a33a2c; min-height: 20px; margin: 0; }
-  .empty { color: #8a93a3; text-align: center; padding: 24px 0; }
+  .edit { background: transparent; color: var(--accent); padding: 6px 10px; font-size: 14px; }
+  .edit:hover { background: var(--accent-soft); }
+  .del { background: transparent; color: var(--danger); padding: 6px 10px; font-size: 14px; }
+  .del:hover { background: var(--danger-bg); }
+  .cancel { background: transparent; color: var(--muted); border-color: var(--line); }
+  .cancel:hover { background: var(--bg); }
+  .actions { display: flex; gap: var(--s1); }
+
+  /* note cards */
+  .note { display: grid; grid-template-columns: auto 1fr auto auto; gap: var(--s2); align-items: start;
+          background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+          padding: var(--s3); margin-bottom: var(--s2); transition: border-color .15s, box-shadow .15s; }
+  .note:hover { border-color: #d3cdc1; box-shadow: 0 2px 10px rgba(21, 23, 28, .06); }
   .note.editing { grid-template-columns: 1fr; }
-  .actions { display: flex; gap: 8px; }
-  .cancel { background: #eceae4; color: #1c2230; }
+  .note input[type=checkbox] { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--accent); }
+  .note h3 { margin: 0; font-size: 17px; line-height: 1.35; }
+  .note p { margin: 4px 0 0; color: var(--muted); font-size: 15px; white-space: pre-wrap; }
+  .note { border-left: 4px solid var(--accent); }                /* active note: accent edge */
+  .note.done { opacity: .65; border-left-color: var(--line); }   /* done note: quiet edge */
+  .note.done h3 { text-decoration: line-through; color: var(--muted); }
+
+  .msg { color: var(--danger); min-height: 20px; margin: 0; font-size: 14px; }
+  .msg:empty { display: none; }          /* no empty gap when there is no message */
+  .empty { color: var(--muted); text-align: center; padding: var(--s4) 0; }
+
 </style>
 </head>
 <body>
@@ -319,6 +352,7 @@ PAGE = """<!doctype html>
             token = data.access_token;
             try { localStorage.setItem("token", token); } catch (e) {}
             passEl.value = "";
+            await loadWho();
             showApp();
             await loadNotes();
     });
