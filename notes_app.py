@@ -463,8 +463,26 @@ PAGE = """<!doctype html>
     const save = document.createElement("button");
     save.className = "submit";
     save.textContent = "Save";
-    // step 3 goes here
 
+    // Save button: send the changes to the API, then redraw the note card.
+    const err = document.createElement("p");          // a message line inside this card
+    err.className = "msg";
+
+    save.addEventListener("click", async () => {
+    const title = titleIn.value.trim();
+    if (!title) { err.textContent = "Title cannot be empty."; titleIn.focus(); return; }
+    err.textContent = "";
+    save.disabled = true;
+    const res = await api("/notes/" + n.id, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title, body: bodyIn.value.trim(), done: n.done }),
+    });
+    if (!res.ok) { err.textContent = "Could not save changes."; save.disabled = false; return; }
+    await loadNotes();
+    }); 
+
+    // Cancel Button: replace the form with the original note card.
     const cancel = document.createElement("button");
     cancel.className = "cancel";
     cancel.textContent = "Cancel";
@@ -474,7 +492,7 @@ PAGE = """<!doctype html>
     actions.className = "actions";
     actions.append(save, cancel);
 
-    card.append(titleIn, bodyIn, actions);
+    card.append(titleIn, bodyIn, err, actions);
     titleIn.focus();
   }
 
